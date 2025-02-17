@@ -38,7 +38,9 @@ def order_data(freq_dict, unit_name="Word", ipa_dir="", lang=None,
     spell_check : string, optional
         Provide the language abbreviation of the necessary Aspell dictionary 
             to filter the words using Aspell spell checker.
-        You can find the spell checker at aspell.net.
+        You can find the Aspell spell checker at aspell.net as well as the
+            dictionaries for different languages used here at 
+            ftp.gnu.org/gnu/aspell/dict/0index.html.
     stats : bool, optional
         Set to True to have some statistical information about the corpus 
             printed out. The default is False.
@@ -88,9 +90,6 @@ def order_data(freq_dict, unit_name="Word", ipa_dir="", lang=None,
         if spell_check and unit_name == "Word":
             # Spell check and remove any misspellings
             spelled_correct = caseless_check(unit, lang=spell_check)
-            # Some words are only recognised without the apostrophe in front, e.g. 'cause
-            if not spelled_correct and unit.startswith("'"):
-                spelled_correct = caseless_check(unit[1:], lang=spell_check)
             if not spelled_correct:
                 continue
         

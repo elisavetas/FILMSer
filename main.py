@@ -85,6 +85,7 @@ ABBR2ASPELL = {'pt':    'pt_PT',
 
 
 
+
 def main(gz_data_file, file_types="txt|xlsx", ipa_dir="",
          count_character=False, count_bigram=False, spell_check=False,
          stats=False):
@@ -112,7 +113,9 @@ def main(gz_data_file, file_types="txt|xlsx", ipa_dir="",
             is to be added. The default is False.
     spell_check : bool, optional
         Set to True to filter the words using Aspell spell checker.
-        You can find the spell checker at aspell.net.
+        You can find the Aspell spell checker at aspell.net as well as the
+            dictionaries for different languages used here at 
+            ftp.gnu.org/gnu/aspell/dict/0index.html.
     stats : bool, optional
         Set to True to have some statistical information about the corpus 
             printed out. The default is False.
