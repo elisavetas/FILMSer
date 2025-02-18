@@ -4,6 +4,7 @@
 Counting different types of frequencies.
 """
 
+from count_ngram import count_ngram
 from process_sent import process_sent
 
 
@@ -66,27 +67,12 @@ def count_freq(data_lines, count_character=False, count_bigram=False,
             word_freq[word] += 1
             
             if count_character:
-                # Go through every character in the given word
-                for character in word:
-                    # Skip spaces and punctuation
-                    if character in " -'":
-                        continue
-                    # Create an entry for the character in the frequency
-                    # dictionary if it doesn't exist yet
-                    character_freq.setdefault(character, 0)
-                    # Count the character
-                    character_freq[character] += 1
+                # character_freq = count_ngram(word, n=1, ngram_freq=character_freq)
+                count_ngram(word, n=1, ngram_freq=character_freq)
             
             if count_bigram:
-                bi_word = f"^{word}$"
+                count_ngram(word, n=2, ngram_freq=bigram_freq)
                 
-                for idx in range(len(bi_word)-1):
-                    bigram = bi_word[idx:idx+2]
-                    # Create an entry for the bigram in the frequency
-                    # dictionary if it doesn't exist yet
-                    bigram_freq.setdefault(bigram, 0)
-                    # Count the bigram
-                    bigram_freq[bigram] += 1
     
     if stats:
         print("Removed characters:\n", deleted, "\n")
