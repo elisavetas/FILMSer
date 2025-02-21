@@ -3,79 +3,16 @@
 """
 The main file for running the code for gathering
 the frequency information from the data.
-
-The data used for collecting the frequencies is taken 
-from the OpenSubtitles database:
-https://opus.nlpl.eu/OpenSubtitles-v2018.php
-
-P. Lison and J. Tiedemann, 2016, OpenSubtitles2016: 
-Extracting Large Parallel Corpora from Movie and TV Subtitles. 
-In Proceedings of the 10th International Conference on Language 
-Resources and Evaluation (LREC 2016)
 """
 
 import argparse
 import time
 
-from extract_data import extract_data
-from count_freq import count_freq
-from order_data import order_data
+from create import create_new_list
 from export_data import export_data
 
-
-ABBR2FULL = {'af': 'afrikaans', 
-             'sq': 'albanian', 
-             'ar': 'arabic', 
-             'hy': 'armenian', 
-             'bn': 'bengali',
-             'bg': 'bulgarian', 
-             'eu': 'basque', 
-             'br': 'breton', 
-             'ca': 'catalan', 
-             'hr': 'croatian', 
-             'cs': 'czech', 
-             'da': 'danish', 
-             'nl': 'dutch', 
-             'en': 'english', 
-             'eo': 'esperanto', 
-             'et': 'estonian', 
-             'fi': 'finnish', 
-             'fr': 'french', 
-             'gl': 'galician', 
-             'ka': 'georgian', 
-             'de': 'german', 
-             'el': 'greek', 
-             'he': 'hebrew', 
-             'hi': 'hindi', 
-             'hu': 'hungarian', 
-             'is': 'icelandic', 
-             'id': 'indonesian', 
-             'it': 'italian', 
-             'kk': 'kazakh', 
-             'lv': 'latvian', 
-             'lt': 'lithuanian', 
-             'mk': 'macedonian', 
-             'ms': 'malay', 
-             'ml': 'malayalam', 
-             'no': 'norwegian', 
-             'fa': 'persian', 
-             'pl': 'polish', 
-             'pt_br': 'portuguese_brazil', 
-             'pt': 'portuguese_portugal', 
-             'ro': 'romanian', 
-             'ru': 'russian', 
-             'sr': 'serbian', 
-             'sk': 'slovak', 
-             'sl': 'slovenian', 
-             'es': 'spanish', 
-             'sv': 'swedish', 
-             'tl': 'tagalog', 
-             'ta': 'tamil', 
-             'te': 'telugu', 
-             'tr': 'turkish', 
-             'uk': 'ukrainian', 
-             'ur': 'urdu'}                                                     
-
+                                                 
+from lang_abbr import ABBR2FULL, FULL2ABBR
 
 NOT_IN_ASPELL = ['albanian', 'basque', 'georgian', 'icelandic', 'kazakh',
                  'norwegian', 'urdu']
@@ -85,37 +22,45 @@ ABBR2ASPELL = {'pt':    'pt_PT',
 
 
 
-
-def main(gz_data_file, file_types="txt|xlsx", ipa_dir="",
-         count_character=False, count_bigram=False, spell_check=False,
-         stats=False):
+def main(file_path, lang="english", spell_check=False,
+         ipa_file="", count_character=False, count_bigram=False, 
+         output_type="txt|xlsx", output_dir="data/", stats=False,
+         progress_bar=False):
     """
-    Collects frequencies from the OpenSubtitles data in a given language.
-
+    Extract word frequencies for a given languages from raw data.
+    
     Parameters
     ----------
-    gz_data_file : str
-        The path to the data file with the gz extension.
-    file_types : str, optional
-        The extension of the file to export the data into.
-        The available extensions: "txt","csv", "xlsx".
-        To export data into more than one file type, use | to separate
-           extensions.
-         The default is "txt|xlsx".
-    ipa_dir : str, optional
-        Provide path to the directory with the IPA information 
-            if the information is to be added. The default is "" (= no IPA).
+    file_path : str
+        The path to the raw data file.
+    lang : str, optional
+        The language of the data as a full name (e.g. "English", not 
+            case-sensitive) or abbreviation (e.g. "en").
+        The default is "english".
+    spell_check : string, optional
+        Provide the language abbreviation of the necessary Aspell dictionary 
+            to filter the words using Aspell spell checker.
+        You can find the Aspell spell checker at aspell.net as well as the
+            dictionaries for different languages used here at 
+            ftp.gnu.org/gnu/aspell/dict/0index.html.
+    ipa_file : str, optional
+        The path to the file(s) with the IPA information if the information 
+        is to be added. Use | to add several files. 
+        The default is "" (= no IPA).
     count_character : bool, optional
         Set to True if the information about word character frequency is to 
         be added. The default is False.
     count_bigram : bool, optional
         Set to True if the information about bigram frequency within a word
             is to be added. The default is False.
-    spell_check : bool, optional
-        Set to True to filter the words using Aspell spell checker.
-        You can find the Aspell spell checker at aspell.net as well as the
-            dictionaries for different languages used here at 
-            ftp.gnu.org/gnu/aspell/dict/0index.html.
+    output_type : str, optional
+        The extension of the file to export the data into. 
+        The available extensions: "txt","csv", "xlsx".
+        To export data into more than one file type, use | to separate
+           extensions.
+         The default is "txt|xlsx".
+    output_dir : TYPE, optional
+        DESCRIPTION. The default is "data/".
     stats : bool, optional
         Set to True to have some statistical information about the corpus 
             printed out. The default is False.
@@ -125,80 +70,83 @@ def main(gz_data_file, file_types="txt|xlsx", ipa_dir="",
     None.
 
     """
-    # Extract the language of the data
-    split_path = gz_data_file.split("/")
-    lang_abbr = split_path[-1].split(".")[0]
-    lang = ABBR2FULL[lang_abbr]
+    # Process language name
+    lang = lang.lower()
+    # If an abbreviation was used to identify the language in lang,
+    # extract the full name
+    if len(lang) == 2 or lang.startswith("pt_"):
+        lang = ABBR2FULL[lang]
+    lang_print = lang.capitalize().replace('_p', ' - P').replace('_b', ' - B')
     
-    print(f"Language: {lang.capitalize()}\n")
-    
+    # Check if there is a spell checker for the chosen language
     if spell_check:
-        assert lang not in NOT_IN_ASPELL, f"You have added the option of using a spell checker; however, there is no spell checker for {lang.capitalize()}"
-        spell_check = ABBR2ASPELL.get(lang_abbr, lang_abbr)
+        assert lang not in NOT_IN_ASPELL, f"You have added the option of using a spell checker; however, there is no spell checker for {lang_print}"
+        spell_check = FULL2ABBR[lang]
     
-    # Extract the raw data from the file
-    data_lines = extract_data(gz_data_file)
-
-    # Extract the frequencies for each word in the data
-    word_freq, character_freq, bigram_freq = count_freq(data_lines, 
-                                                count_character=count_character,
-                                                count_bigram=count_bigram,
-                                                stats=stats)
+    # Print the chosen options
+    print(f"Language: {lang_print}")
+    print(f"Filter via Aspell: {'Yes' if spell_check else 'No'}")
+    print(f"Add IPA: {'Yes' if ipa_file else 'No'}")
+    print(f"Count the character frequency: {'Yes' if count_character else 'No'}")
+    print(f"Count the bigram frequency: {'Yes' if count_bigram else 'No'}")
+    print(f"Print out statistics: {'Yes' if stats else 'No'}")
     
-    data_types = {"word": word_freq}
+    # Create a frequency list from the given data
+    freq_lists = create_new_list(file_path, lang=lang, spell_check=spell_check, 
+                                 ipa_file=ipa_file, count_character=count_character, 
+                                 count_bigram=count_bigram, stats=stats, 
+                                 progress_bar=progress_bar)
     
-    if count_character:
-        data_types["character"] = character_freq
+    # Write data into file(s)
+    for data_type in freq_lists:
+        freq_list_df = freq_lists[data_type]
         
-    if count_bigram:
-        data_types["bigram"] = bigram_freq
-    
-    if ipa_dir:
-        data_types["ipa"] = word_freq
-    
-    for data_type in data_types:
-        ipa_info = ipa_dir if data_type == "ipa" else ""
-        data_type = "word" if data_type == "ipa" else data_type
+        # Add the slash to the output directory if it was not provided
+        if output_dir[-1] != "/":
+            output_dir += "/"
+        folder_name = f"{output_dir}{data_type}_freq/"
         
-        # Organize the data
-        ordered_freq = order_data(data_types[data_type], ipa_dir=ipa_info, 
-                                  lang=lang, unit_name=data_type.capitalize(),
-                                  spell_check=spell_check, stats=stats)
-                
-        # Export word frequency data in a file
-        folder_name = f"data/{data_type}_freq/"
+        # Create the name of the file
         file_name = folder_name + lang + f".{data_type}.freq"
+
         if spell_check:
             file_name += ".spell_checked"
-        if ipa_info:
-            file_name += ".ipa"        
-        export_data(ordered_freq, file_name, file_types=file_types)
+        if ipa_file:
+            file_name += ".ipa"
         
-        
+        # Write the data into file(s)
+        export_data(freq_list_df, file_name, file_types=output_type)
+
+
 
 if __name__ == "__main__":
     ### Run the code using arguments
-    argdesc = "The script for extracting word frequencies from the OpenSubtitles corpus."
+    argdesc = "The script for extracting word frequencies from raw data."
     argparser = argparse.ArgumentParser(description=argdesc)
 
     argparser.add_argument("-f", "--file", type=str, required=True,
-                            help="the path to the data file with the gz extension (required)")
+                            help="the path to the data file (required)")
+    argparser.add_argument("-l", "--language", type=str, default="english",
+                            help='the language of the data as a full name (e.g. "English", not case-sensitive) or abbreviation (e.g. "en"); default: english')    
     argparser.add_argument("-x", "--extension", type=str, default="txt|xlsx",
                             help="the extension of the file to export the data into (txt/xlsx/csv); use | for several data types; default: txt|xlsx")    
+    argparser.add_argument("-a", "--aspell", default=False,
+                            action=argparse.BooleanOptionalAction,
+                            help="filter the words using the Aspell spell checker")
     argparser.add_argument("-i", "--ipa", type=str, default="",
-                            help="the path to the directory containing the files with the IPA information if the information is to be added")
+                            help="the path to the file with the IPA information if the information is to be added; use | to add more than one file")
     argparser.add_argument("-c", "--character", default=False,
                             action=argparse.BooleanOptionalAction,
                             help="use to extract word character frequency information")
     argparser.add_argument("-b", "--bigram", default=False,
                             action=argparse.BooleanOptionalAction,
                             help="use to extract bigram frequency information (bigrams within a word)")
-    argparser.add_argument("-a", "--aspell", default=False,
-                            action=argparse.BooleanOptionalAction,
-                            help="filter the words using the Aspell spell checker")
     argparser.add_argument("-s", "--stats", default=False,
                             action=argparse.BooleanOptionalAction,
                             help="use to print out statistics about the data")
+    argparser.add_argument("-p", "--progress-bar", default=False,
+                            action=argparse.BooleanOptionalAction,
+                            help="use for a progress bar to be displayed (from alive-progress package)")
     
     args = argparser.parse_args()
 
@@ -206,15 +154,16 @@ if __name__ == "__main__":
     ### Run the script with the given arguments
     time_start = time.time()  # keep track of the time to report on the runtime
     
-    gz_data_file = args.file
-    main(gz_data_file, ipa_dir=args.ipa, count_character=args.character,
-          count_bigram=args.bigram, spell_check=args.aspell, stats=args.stats)
-
+    data_file = args.file
+    main(data_file, lang=args.language, spell_check=args.aspell, 
+         ipa_file=args.ipa, count_character=args.character,
+         count_bigram=args.bigram, stats=args.stats, 
+         progress_bar=args.progress_bar)
 
     ### Run the script without using arguments
-    # gz_data_file = "opensubs/br.txt.gz"
-    # main(gz_data_file, count_character=False, count_bigram=False, 
-    #      ipa_dir="IPA/", stats=True)
+    # data_file = "opensubs/br.txt.gz"
+    # main(data_file, count_character=False, count_bigram=False, 
+    #      ipa_file="IPA/bre_latn_broad.tsv", stats=True)
     
     ### Calculate the runtime
     time_end = time.time()

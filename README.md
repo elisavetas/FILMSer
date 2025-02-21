@@ -42,17 +42,39 @@ Run [`main.py`](https://github.com/sarachilson/FILMS-Corpus/blob/main/main.py) t
 | Argument | Full argument name | Description |
 | --- | --- | --- |
 | `-h` | `--help` | List available arguments. |
-| `-f FILE` | `--file FILE` | The path to the data file with the `gz` extension (required). |
+| `-f FILE` | `--file FILE` | The path to the data file (required). |
+| `-l LANGUAGE` | `--language LANGUAGE` | The language of the data as a full name (e.g. "English", not case-sensitive) or abbreviation (e.g. "en"). Note that it is especially important to provide the correct language when using Aspell. Default: "english". |
 | `-x EXTENSION` | `--extension EXTENSION` | The extension of the file to export the data into (`txt`/`xlsx`/`csv`). Use \| for several data types (default: `txt|xlsx`) |
+| `-a` | `--aspell` | Use to filter the words via the [Aspell](http://aspell.net/) spell checker. |
 | `-i IPA` | `--ipa IPA` | The path to the directory containing the files with the IPA information from the Wikipron corpus. The IPA information will only be added to the data if the directory is provided. |
 | `-c` | `--character` | Use to extract word character frequency information. |
 | `-b` | `--bigram` | Use to extract bigram frequency information. |
-| `-a` | `--aspell` | Use to filter the words via the [Aspell](http://aspell.net/) spell checker. |
 | `-s` | `--stats` | Use to print out statistics about the data. |
+| `-p` | `--progress-bar` | Use for a progress bar to be displayed (from [alive-progress](https://github.com/rsalmei/alive-progress/) package). |
 
 _Usage_ _example_: 
-If you would like to get the frequency data for German with IPA only in Excel format, and have the statistics information printed out, you can run the following in the command line:
+If you would like to get the frequency data for German with IPA only in Excel format and have the statistics information printed out as well as a progress bar to be displayed, you can run the following in the command line:
 
 ```
-python main.py -f OpenSubtitlesDirectoryName/de.txt.gz -x xlsx --ipa WikipronDirectoryName/ --stats
+python main.py -f PathToFile -x xlsx --ipa PathToIPAFile --stats -p
 ```
+  -h, --help            show this help message and exit
+  -f FILE, --file FILE  the path to the data file (required)
+  -l LANGUAGE, --language LANGUAGE
+                        the language of the data as a full name (e.g. "English", not case-sensitive) or abbreviation
+                        (e.g. "en").; default: english
+  -x EXTENSION, --extension EXTENSION
+                        the extension of the file to export the data into (txt/xlsx/csv); use | for several data
+                        types; default: txt|xlsx
+  -a, --aspell, --no-aspell
+                        filter the words using the Aspell spell checker
+  -i IPA, --ipa IPA     the path to the file with the IPA information if the information is to be added; use | to add
+                        more than one file
+  -c, --character, --no-character
+                        use to extract word character frequency information
+  -b, --bigram, --no-bigram
+                        use to extract bigram frequency information (bigrams within a word)
+  -s, --stats, --no-stats
+                        use to print out statistics about the data
+  -p, --progress-bar, --no-progress-bar
+                        use to show a progress bar

@@ -10,7 +10,7 @@ from process_sent import process_sent
 
 
 def count_freq(data_lines, count_character=False, count_bigram=False,
-               stats=False):
+               stats=False, progress_bar=False):
     """
     Counts the frequency of every word in the data.
     Optionally counts the frequency of every character in the data.
@@ -47,9 +47,11 @@ def count_freq(data_lines, count_character=False, count_bigram=False,
     # Keep track of deleted characters
     deleted = set()
     
-    # Go through every sentence in the data
-    for sent in data_lines:
-        processed_sent, del_set = process_sent(sent, stats)
+    def process_l(line):
+        """
+        Helper function for processing lines of data.
+        """
+        processed_sent, del_set = process_sent(line, stats=stats)
         
         deleted.update(del_set)
         
@@ -67,11 +69,26 @@ def count_freq(data_lines, count_character=False, count_bigram=False,
             word_freq[word] += 1
             
             if count_character:
-                # character_freq = count_ngram(word, n=1, ngram_freq=character_freq)
                 count_ngram(word, n=1, ngram_freq=character_freq)
             
             if count_bigram:
                 count_ngram(word, n=2, ngram_freq=bigram_freq)
+    
+    
+    
+    # Progress bar
+    if progress_bar:
+        from alive_progress import alive_bar
+        print("Calculating frequencies...")
+        with alive_bar(len(data_lines), theme="scuba") as bar:
+            # Go through every sentence in the data
+            for line in data_lines:
+                process_l(line)
+                bar() # Show progress
+    else:
+        # Go through every sentence in the data
+        for line in data_lines:
+            process_l(line)
                 
     
     if stats:

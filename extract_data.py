@@ -7,7 +7,7 @@ Extract data from gz.
 import gzip
 
 
-def extract_data(gz_file):
+def extract_from_gz(gz_file):
     """
     Extract data from a given gz file.
 

@@ -6,7 +6,7 @@ Produce n-gram frequencies in a word.
 
 def count_ngram(word, n=1, ngram_freq={}):
     """
-    Counts n-gram frequencies in a given word. 
+    Counts n-gram frequencies in a given word.
     For n-grams where n > 1 the word boundaries are taken into account,
         with the beginning of the word being denoted as ^ and the end as $.
     Updates the frequencies in an existing dictionary when the dictionary
