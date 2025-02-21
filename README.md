@@ -58,23 +58,3 @@ If you would like to get the frequency data for German with IPA only in Excel fo
 ```
 python main.py -f PathToFile -x xlsx --ipa PathToIPAFile --stats -p
 ```
-  -h, --help            show this help message and exit
-  -f FILE, --file FILE  the path to the data file (required)
-  -l LANGUAGE, --language LANGUAGE
-                        the language of the data as a full name (e.g. "English", not case-sensitive) or abbreviation
-                        (e.g. "en").; default: english
-  -x EXTENSION, --extension EXTENSION
-                        the extension of the file to export the data into (txt/xlsx/csv); use | for several data
-                        types; default: txt|xlsx
-  -a, --aspell, --no-aspell
-                        filter the words using the Aspell spell checker
-  -i IPA, --ipa IPA     the path to the file with the IPA information if the information is to be added; use | to add
-                        more than one file
-  -c, --character, --no-character
-                        use to extract word character frequency information
-  -b, --bigram, --no-bigram
-                        use to extract bigram frequency information (bigrams within a word)
-  -s, --stats, --no-stats
-                        use to print out statistics about the data
-  -p, --progress-bar, --no-progress-bar
-                        use to show a progress bar
