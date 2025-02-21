@@ -65,9 +65,15 @@ def export_data(df, file_name, file_types="txt"):
         
         elif file_type == "xlsx":
             # Maximum size possible for excel: 1,048,576 rows, 16,384 cols
-            # Restrict data size to 100,000 entries
-            max_entries = 100000
-            df[:max_entries].to_excel(curr_file_name, index=False)
+            max_rows = 1048576
+            df[:max_rows].to_excel(curr_file_name, index=False)
+            
+            # Also create a readable version restricted to 100,000 entries
+            # if the full file is too big
+            cut_entries = 100000
+            if cut_entries < df.shape[0]:
+                curr_file_name = f"{".".join(curr_file_name.split(".")[:-1])}.{cut_entries}.xlsx"
+                df[:cut_entries].to_excel(curr_file_name, index=False)
         
         else:
             raise Exception(f"Unsupported file type {file_type}.")
