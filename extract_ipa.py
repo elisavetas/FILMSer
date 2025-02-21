@@ -13,9 +13,9 @@ def extract_ipa(ipa_file_path):
 
     Parameters
     ----------
-    ipa_file_path : str
+    ipa_file_path : str / list
         The path to the file(s) with the IPA information if the information 
-        is to be added. Use | to add several files. 
+        is to be added. Provide a list of files to add several of them. 
         Expected data format:
                 "word \tab IPA" per line
 
@@ -25,10 +25,13 @@ def extract_ipa(ipa_file_path):
         A dictionary that provides an IPA transkription for available words.
 
     """
+    if type(ipa_file_path) == str:
+        ipa_file_path = [ipa_file_path]
+    
     ipa_dict = {}
     
     # Go through every IPA file that exists for the given language
-    for lang_file in ipa_file_path.split("|"):
+    for lang_file in ipa_file_path:
         # Extract the IPA data
         data = pd.read_csv(lang_file, sep='\t',
                             names=["Word", "IPA"], header=None)

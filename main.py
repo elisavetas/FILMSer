@@ -10,6 +10,7 @@ import time
 
 from create import create_new_list
 from export_data import export_data
+from update import upd_exist_list
 
                                                  
 from lang_abbr import ABBR2FULL, FULL2ABBR
@@ -22,30 +23,36 @@ ABBR2ASPELL = {'pt':    'pt_PT',
 
 
 
-def main(file_path, lang="english", spell_check=False,
+def main(file_path, mode="create", lang="english", spell_check=False,
          ipa_file="", count_character=False, count_bigram=False, 
-         output_type="txt|xlsx", output_dir="data/", stats=False,
-         progress_bar=False):
+         output_type="txt|xlsx", output_dir="data/", add_data_file="",
+         stats=False, progress_bar=False):
     """
     Extract word frequencies for a given languages from raw data.
     
     Parameters
     ----------
     file_path : str
-        The path to the raw data file.
+        The path to the raw data file in create mode,
+        the path to the existing frequency list file in update mode.
+    mode : str, optional
+        Use mode="create" to a create a frequency list from a new file.
+        Use mode="update" to update information in an existing frequency list.
+        The default is "create".
     lang : str, optional
         The language of the data as a full name (e.g. "English", not 
             case-sensitive) or abbreviation (e.g. "en").
         The default is "english".
     spell_check : string, optional
-        Provide the language abbreviation of the necessary Aspell dictionary 
-            to filter the words using Aspell spell checker.
+        Set to True to filter the words using Aspell spell checker. It is 
+            important to set the lang value correct for the correct dictionary
+            to be used. Default is False.
         You can find the Aspell spell checker at aspell.net as well as the
             dictionaries for different languages used here at 
             ftp.gnu.org/gnu/aspell/dict/0index.html.
     ipa_file : str, optional
         The path to the file(s) with the IPA information if the information 
-        is to be added. Use | to add several files. 
+        is to be added. Provide a list of files to add several of them. 
         The default is "" (= no IPA).
     count_character : bool, optional
         Set to True if the information about word character frequency is to 
@@ -59,11 +66,19 @@ def main(file_path, lang="english", spell_check=False,
         To export data into more than one file type, use | to separate
            extensions.
          The default is "txt|xlsx".
-    output_dir : TYPE, optional
-        DESCRIPTION. The default is "data/".
+    output_dir : str, optional
+        The path to the directory where the created / updated frequency list 
+            should be saved. The default is "data/".
+    add_data_file : str, optional
+        Path to a raw data file to calculate new frequency information from and
+        add it to an already existing frequency list. Only works in update mode. 
+        The default is "" (= no new data to be added).
     stats : bool, optional
         Set to True to have some statistical information about the corpus 
             printed out. The default is False.
+    progress_bar : bool, optional
+        Set to True to display a progress bar of the running processes.
+        The default is False.
 
     Returns
     -------
@@ -85,6 +100,7 @@ def main(file_path, lang="english", spell_check=False,
     
     # Print the chosen options
     print(f"Language: {lang_print}")
+    print(f"Mode: {mode.capitalize()}")
     print(f"Filter via Aspell: {'Yes' if spell_check else 'No'}")
     print(f"Add IPA: {'Yes' if ipa_file else 'No'}")
     print(f"Count the character frequency: {'Yes' if count_character else 'No'}")
@@ -92,10 +108,19 @@ def main(file_path, lang="english", spell_check=False,
     print(f"Print out statistics: {'Yes' if stats else 'No'}")
     
     # Create a frequency list from the given data
-    freq_lists = create_new_list(file_path, lang=lang, spell_check=spell_check, 
-                                 ipa_file=ipa_file, count_character=count_character, 
-                                 count_bigram=count_bigram, stats=stats, 
-                                 progress_bar=progress_bar)
+    if mode == "create":
+        freq_lists = create_new_list(file_path, lang=lang, spell_check=spell_check, 
+                                     ipa_file=ipa_file, count_character=count_character, 
+                                     count_bigram=count_bigram, stats=stats, 
+                                     progress_bar=progress_bar)
+    
+    # Update an existing frequency list with new data / information
+    elif mode == "update":
+        freq_lists = upd_exist_list(file_path, lang=lang, add_data_file=add_data_file, 
+                                    spell_check=spell_check, ipa_file=ipa_file, 
+                                    count_character=count_character, 
+                                    count_bigram=count_bigram, stats=stats,
+                                    progress_bar=progress_bar)
     
     # Write data into file(s)
     for data_type in freq_lists:
@@ -109,6 +134,10 @@ def main(file_path, lang="english", spell_check=False,
         # Create the name of the file
         file_name = folder_name + lang + f".{data_type}.freq"
 
+        if mode == "update":
+            file_name += "--update"
+        if add_data_file:
+            file_name += "." + ".".join(add_data_file.split("/")[-1].split(".")[:-1])
         if spell_check:
             file_name += ".spell_checked"
         if ipa_file:
@@ -125,16 +154,21 @@ if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description=argdesc)
 
     argparser.add_argument("-f", "--file", type=str, required=True,
-                            help="the path to the data file (required)")
+                            help="the path to the raw data file (when creating a new frequency list) / an existing frequency list file (when using update mode to update the file with necessary information) (required)")
+    argparser.add_argument("-u", "--update", default=False,
+                            action=argparse.BooleanOptionalAction,
+                            help="use to update the provided frequency list with new information")
+    argparser.add_argument("-n", "--new-data", type=str, default="",
+                            help="path to a raw data file to calculate new frequency information from and add it to an already existing frequency list; only works in update mode; the default is "" (no data to be added).")  
     argparser.add_argument("-l", "--language", type=str, default="english",
                             help='the language of the data as a full name (e.g. "English", not case-sensitive) or abbreviation (e.g. "en"); default: english')    
-    argparser.add_argument("-x", "--extension", type=str, default="txt|xlsx",
-                            help="the extension of the file to export the data into (txt/xlsx/csv); use | for several data types; default: txt|xlsx")    
+    argparser.add_argument("-x", "--extension", type=str, default=["txt", "xlsx"], nargs='+',
+                            help="the extension of the file to export the data into (txt (tab-separated) | xlsx | csv | tsv); you can provide several data types; default: txt xlsx")    
     argparser.add_argument("-a", "--aspell", default=False,
                             action=argparse.BooleanOptionalAction,
                             help="filter the words using the Aspell spell checker")
-    argparser.add_argument("-i", "--ipa", type=str, default="",
-                            help="the path to the file with the IPA information if the information is to be added; use | to add more than one file")
+    argparser.add_argument("-i", "--ipa", type=str, default="", nargs='+',
+                            help="the path to the file with the IPA information if the information is to be added; you can provide more than one file")
     argparser.add_argument("-c", "--character", default=False,
                             action=argparse.BooleanOptionalAction,
                             help="use to extract word character frequency information")
@@ -147,6 +181,9 @@ if __name__ == "__main__":
     argparser.add_argument("-p", "--progress-bar", default=False,
                             action=argparse.BooleanOptionalAction,
                             help="use for a progress bar to be displayed (from alive-progress package)")
+    argparser.add_argument("-d", "--output-directory", type=str, default="data/",
+                            help='the path to the directory where the created / updated frequency list should be saved; the default is "data/"')    
+
     
     args = argparser.parse_args()
 
@@ -155,10 +192,12 @@ if __name__ == "__main__":
     time_start = time.time()  # keep track of the time to report on the runtime
     
     data_file = args.file
-    main(data_file, lang=args.language, spell_check=args.aspell, 
+    mode = "update" if args.update else "create"
+    main(data_file, mode=mode, lang=args.language, spell_check=args.aspell, 
          ipa_file=args.ipa, count_character=args.character,
-         count_bigram=args.bigram, stats=args.stats, 
-         progress_bar=args.progress_bar)
+         count_bigram=args.bigram, output_type="|".join(args.extension),
+         output_dir=args.output_directory, add_data_file=args.new_data,
+         stats=args.stats, progress_bar=args.progress_bar)
 
     ### Run the script without using arguments
     # data_file = "opensubs/br.txt.gz"

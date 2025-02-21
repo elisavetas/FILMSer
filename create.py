@@ -15,7 +15,48 @@ from lang_abbr import FULL2ABBR
 def create_new_list(data_path, lang="english", spell_check=False, ipa_file="", 
                     count_character=False, count_bigram=False, stats=False,
                     progress_bar=False):
-    
+    """
+    Creates a frequency list from the given data.
+
+    Parameters
+    ----------
+    data_path : str
+        The path to the raw data file.
+    lang : str, optional
+        The language of the data as a full name (e.g. "English", not 
+            case-sensitive) or abbreviation (e.g. "en").
+        The default is "english".
+    spell_check : string, optional
+        Set to True to filter the words using Aspell spell checker. It is 
+            important to set the lang value correct for the correct dictionary
+            to be used. Default is False.
+        You can find the Aspell spell checker at aspell.net as well as the
+            dictionaries for different languages used here at 
+            ftp.gnu.org/gnu/aspell/dict/0index.html.
+    ipa_file : str, optional
+        The path to the file(s) with the IPA information if the information 
+        is to be added. Provide a list of files to add several of them. 
+        The default is "" (= no IPA).
+    count_character : bool, optional
+        Set to True if the information about word character frequency is to 
+        be added. The default is False.
+    count_bigram : bool, optional
+        Set to True if the information about bigram frequency within a word
+            is to be added. The default is False.
+    stats : bool, optional
+        Set to True to have some statistical information about the corpus 
+            printed out. The default is False.
+    progress_bar : bool, optional
+        Set to True to display a progress bar of the running processes.
+        The default is False.
+
+    Returns
+    -------
+    freq_lists : dict of pandas DataFrames
+        Contains DataFrames for different types of data (word, character, bigram).
+        Form {data type name : DataFrame}
+
+    """
     # Extract the raw data from the file depending on its extension
     if data_path.endswith("gz"):
         data_lines = extract_from_gz(data_path)

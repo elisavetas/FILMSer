@@ -30,7 +30,10 @@ def process_sent(sent, stats=False):
     words: list of strings
         A list of words from the sentence.
 
-    """    
+    """
+    # Process tabs as spaces
+    sent = sent.replace("\t", " ")
+    
     sent_len = len(sent)
     clean_sent = ""
     

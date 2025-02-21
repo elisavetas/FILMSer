@@ -42,19 +42,22 @@ Run [`main.py`](https://github.com/sarachilson/FILMS-Corpus/blob/main/main.py) t
 | Argument | Full argument name | Description |
 | --- | --- | --- |
 | `-h` | `--help` | List available arguments. |
-| `-f FILE` | `--file FILE` | The path to the data file (required). |
+| `-f FILE` | `--file FILE` | The path to the raw data file (when creating a new frequency list) / an existing frequency list file (when using update mode to update the file with necessary information) (required). |
+| `-u` | `--update` | Use to update the provided frequency list with new information. |
+| `-n NEW_DATA` | `--new-data NEW_DATA` | The path to a raw data file to calculate new frequency information from and add it to an already existing frequency list. Only works in update mode. The default is "" (no data to be added). |
 | `-l LANGUAGE` | `--language LANGUAGE` | The language of the data as a full name (e.g. "English", not case-sensitive) or abbreviation (e.g. "en"). Note that it is especially important to provide the correct language when using Aspell. Default: "english". |
-| `-x EXTENSION` | `--extension EXTENSION` | The extension of the file to export the data into (`txt`/`xlsx`/`csv`). Use \| for several data types (default: `txt|xlsx`) |
+| `-x EXTENSION [EXTENSION ...]` | `--extension EXTENSION [EXTENSION ...]` | The extension of the file to export the data into (`txt` (tab-separated)/`xlsx`/`csv`/`tsv`). You can provide several data types (default: `txt xlsx`). |
 | `-a` | `--aspell` | Use to filter the words via the [Aspell](http://aspell.net/) spell checker. |
-| `-i IPA` | `--ipa IPA` | The path to the directory containing the files with the IPA information from the Wikipron corpus. The IPA information will only be added to the data if the directory is provided. |
+| `-i IPA [IPA ...]` | `--ipa IPA [IPA ...]` | The path to the file with the IPA information if the information is to be added. You can provide more than one file. The IPA information will only be added to the data if the directory is provided. |
 | `-c` | `--character` | Use to extract word character frequency information. |
 | `-b` | `--bigram` | Use to extract bigram frequency information. |
 | `-s` | `--stats` | Use to print out statistics about the data. |
 | `-p` | `--progress-bar` | Use for a progress bar to be displayed (from [alive-progress](https://github.com/rsalmei/alive-progress/) package). |
+| `-d OUTPUT_DIRECTORY` | `--output-directory OUTPUT_DIRECTORY` | The path to the directory where the created / updated frequency list should be saved. The default is "data/". |
 
 _Usage_ _example_: 
 If you would like to get the frequency data for German with IPA only in Excel format and have the statistics information printed out as well as a progress bar to be displayed, you can run the following in the command line:
 
 ```
-python main.py -f PathToFile -l german -x xlsx --ipa PathToIPAFile --stats -p
+python main.py -f PathToFile -x xlsx --ipa PathToIPAFile --stats -p
 ```

@@ -20,7 +20,7 @@ def export_data(df, file_name, file_types="txt"):
             will be exported.
     file_types : str, optional
         The extension of the file to export the data into.
-        The available extensions: "txt","csv", "xlsx". 
+        The available extensions: "txt","csv", "xlsx", "tsv". 
         The default is "txt".
         To export data into more than one file type, use | to separate
            extensions.
@@ -37,15 +37,25 @@ def export_data(df, file_name, file_types="txt"):
 
     """
     # Create the folder for the data if it does not exist yet
-    directory = "/".join(file_name.split("/")[:-1])
-    if not os.path.exists(directory):
+    split_path = file_name.split("/")
+    directory = "/".join(split_path[:-1])
+        
+    dir_level = 1
+        
+    while not os.path.exists(directory) and directory:
+        dir_level += 1
+        directory = "/".join(split_path[:-dir_level])
+        
+    while dir_level > 1:
+        dir_level -= 1
+        directory = "/".join(split_path[:-dir_level])
         os.mkdir(directory)
     
     # Create the file(s) with the required extension
     for file_type in file_types.split("|"):
         curr_file_name = f"{file_name}.{file_type}"
         
-        if file_type == "txt":
+        if file_type == "txt" or file_type == "tsv":
             df.to_csv(curr_file_name, sep='\t', index=False,
                       encoding="utf-8")
         
@@ -54,7 +64,7 @@ def export_data(df, file_name, file_types="txt"):
                       encoding="utf-8")
         
         elif file_type == "xlsx":
-            # Maximum size possible for excel: 1048576, 16384
+            # Maximum size possible for excel: 1,048,576 rows, 16,384 cols
             # Restrict data size to 100,000 entries
             max_entries = 100000
             df[:max_entries].to_excel(curr_file_name, index=False)
