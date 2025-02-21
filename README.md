@@ -56,5 +56,5 @@ _Usage_ _example_:
 If you would like to get the frequency data for German with IPA only in Excel format and have the statistics information printed out as well as a progress bar to be displayed, you can run the following in the command line:
 
 ```
-python main.py -f PathToFile -x xlsx --ipa PathToIPAFile --stats -p
+python main.py -f PathToFile -l german -x xlsx --ipa PathToIPAFile --stats -p
 ```
