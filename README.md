@@ -3,6 +3,9 @@
 Word <ins>F</ins>requency <ins>I</ins>PA <ins>M</ins>ulti<ins>L</ins>ingual <ins>S</ins>ubtitles Corpus (FILMS Corpus) is a frequency corpus based on the movie subtitles data taken from [OpenSubtitles corpus](https://opus.nlpl.eu/OpenSubtitles/corpus/version/OpenSubtitles) (v2018).
 FILMS includes a full length version of all frequency count, as well as a smaller subset of the data contianing only words for which IPA transcriptions were avaliabe in Wikipedia [Wikipron corpus](https://github.com/CUNY-CL/wikipron/tree/master/data/scrape/tsv).
 
+A preprint of the paper can be found on OSF Preprints.  
+https://doi.org/10.31219/osf.io/zy5qf
+
 Sara Chilson, Elizaveta Sineva, Xenia Schmalz (2024). 
 
 ## Data
