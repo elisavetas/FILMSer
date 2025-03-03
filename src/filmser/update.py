@@ -8,13 +8,13 @@ import math
 
 import pandas as pd
 
-from count_ngram import count_ngram
-from create import create_new_list
-from spell_checker import caseless_check
-from extract_ipa import extract_ipa
+from .freq_counters.count_ngram import count_ngram
+from .create import create_new_list
+from .data_extenders.spell_checker import caseless_check
+from .data_extenders.extract_ipa import extract_ipa
 
 
-from lang_abbr import FULL2ABBR
+from .iso2lang import FULL2ISO
 
 
 
@@ -36,10 +36,10 @@ def upd_exist_list(freq_list_path, lang="english", add_data_file="",
         Path to a raw data file to calculate new frequency information from and
         add it to an already existing frequency list. 
         The default is "" (= no new data to be added).
-    spell_check : string, optional
+    spell_check : bool, optional
         Set to True to filter the words using Aspell spell checker. It is 
             important to set the lang value correct for the correct dictionary
-            to be used. Default is False.
+            to be used. The default is False.
         You can find the Aspell spell checker at aspell.net as well as the
             dictionaries for different languages used here at 
             ftp.gnu.org/gnu/aspell/dict/0index.html.
@@ -67,7 +67,9 @@ def upd_exist_list(freq_list_path, lang="english", add_data_file="",
         Form {data type name : DataFrame}
 
     """
-    
+    if progress_bar:
+        from alive_progress import alive_bar
+        
     # Extract the frequency data from the file depending on its extension
     if freq_list_path.endswith("xlsx"):
         freq_list_df = pd.read_excel(freq_list_path, converters={'Word' : str})
@@ -142,7 +144,6 @@ def upd_exist_list(freq_list_path, lang="english", add_data_file="",
             
         # Progress bar
         if progress_bar:
-            from alive_progress import alive_bar
             print("Updating the frequency list with new frequency information...")
             with alive_bar(new_df.shape[0], theme="scuba") as bar:
                 # Merge with existing frequency list
@@ -166,7 +167,6 @@ def upd_exist_list(freq_list_path, lang="english", add_data_file="",
         
         # Progress bar
         if progress_bar:
-            from alive_progress import alive_bar
             print("Re-calculating values for new data...")
             with alive_bar(freq_df.shape[0], theme="scuba") as bar:
                 # Update the information
@@ -209,7 +209,7 @@ def upd_exist_list(freq_list_path, lang="english", add_data_file="",
             
             # Don't filter out high frequency words
             if zipf < 4.5:
-                word_exists = caseless_check(word, lang=FULL2ABBR[lang])
+                word_exists = caseless_check(word, lang=FULL2ISO[lang])
                 
                 # Remove the word if the spell checker does not recognise it
                 if not word_exists:
@@ -250,7 +250,6 @@ def upd_exist_list(freq_list_path, lang="english", add_data_file="",
     
     # Progress bar
     if progress_bar:
-        from alive_progress import alive_bar
         print("Adding new information...")
         with alive_bar(freq_lists.get("word", freq_list_df).shape[0], theme="scuba") as bar:
             for row in freq_lists.get("word", freq_list_df).iterrows():
@@ -285,7 +284,6 @@ def upd_exist_list(freq_list_path, lang="english", add_data_file="",
 
         # Progress bar
         if progress_bar:
-            from alive_progress import alive_bar
             if data_type == "word":
                 print("Re-calculating values for filtered frequencies...")
             else:

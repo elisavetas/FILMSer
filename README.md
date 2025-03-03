@@ -39,7 +39,11 @@ The statistics information includes:
 
 ## Code
 
-Run [`main.py`](https://github.com/sarachilson/FILMS-Corpus/blob/main/main.py) to produce frequency files.
+Run [`main.py`](https://github.com/sarachilson/FILMS-Corpus/blob/main/main.py) as a package to produce frequency file(s). When running outside of the `src` directory:
+```
+python -m src.filmser.main -f /path/to/file/
+```
+
 `main.py` takes the following arguments that allow you to modify the frequency data output:
 
 | Argument | Full argument name | Description |
@@ -50,6 +54,7 @@ Run [`main.py`](https://github.com/sarachilson/FILMS-Corpus/blob/main/main.py) t
 | `-n NEW_DATA` | `--new-data NEW_DATA` | The path to a raw data file to calculate new frequency information from and add it to an already existing frequency list. Only works in update mode. The default is "" (no data to be added). |
 | `-l LANGUAGE` | `--language LANGUAGE` | The language of the data as a full name (e.g. "English", not case-sensitive) or abbreviation (e.g. "en"). Note that it is especially important to provide the correct language when using Aspell. Default: "english". |
 | `-x EXTENSION [EXTENSION ...]` | `--extension EXTENSION [EXTENSION ...]` | The extension of the file to export the data into (`txt` (tab-separated)/`xlsx`/`csv`/`tsv`). You can provide several data types (default: `txt xlsx`). |
+|  | `--spacy-size SPACY_SIZE` | Set the size of the spacy model used (if used) for tokenization. Options: "sm" (small), "md" (middle), "lg" (large), "trf" (transformer). The default is "sm" (small). |
 | `-a` | `--aspell` | Use to filter the words via the [Aspell](http://aspell.net/) spell checker. |
 | `-i IPA [IPA ...]` | `--ipa IPA [IPA ...]` | The path to the file with the IPA information if the information is to be added. You can provide more than one file. The IPA information will only be added to the data if the directory is provided. |
 | `-c` | `--character` | Use to extract word character frequency information. |
@@ -62,5 +67,5 @@ _Usage_ _example_:
 If you would like to get the frequency data for German with IPA only in Excel format and have the statistics information printed out as well as a progress bar to be displayed, you can run the following in the command line:
 
 ```
-python main.py -f PathToFile -x xlsx --ipa PathToIPAFile --stats -p
+python -m src.filmser.main -f PathToFile -x xlsx --ipa PathToIPAFile --stats -p
 ```
