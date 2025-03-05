@@ -76,7 +76,6 @@ def extend_data(freq_df, lang="en", unit_name="Word", spell_check=False,
             token_len = 0
             type_len = 0
 
-    
     freq_lists = {unit_name.lower(): freq_df}
     
     # Character frequencies
@@ -108,7 +107,7 @@ def extend_data(freq_df, lang="en", unit_name="Word", spell_check=False,
             # thetotal word frequency
             freq_lists[data_type][ngram] += ngram_freq*word_freq
     
-    def add_info(row):
+    def add_ngrams(row):
         """
         Helper function for processong a word in a given row and
         updating necessary information.
@@ -116,106 +115,71 @@ def extend_data(freq_df, lang="en", unit_name="Word", spell_check=False,
         unit = row[1][unit_name]
         unit_freq = row[1]["Frequency"]
         
-        if "IPA" in freq_lists[unit_name.lower()].columns:
-            ipa_info = row[1]["IPA"]
-        else:
-            ipa_info = None
-        
-        # Add IPA information
-        if ipa_file and unit_name == "Word":
-            if unit in ipa_dict:
-                ipa_info = ipa_dict[unit]
-            elif "ß" in unit:
-                # Rewrite ß as ss to search for IPA
-                # to account for German spelling versions
-                ssword = unit.replace("ß", "ss")
-                if ssword in ipa_dict:
-                    ipa_info = ipa_dict[ssword]
-            
-            # If the ipa info is available, include the word
-            if ipa_info:
-                freq_lists[unit_name.lower()].loc[row[0], "IPA"] = ipa_info
-
-        
-        # Filter using a spell checker; don't check if IPA info for the word exists
-        if spell_check and not ipa_info and unit_name == "Word":
-            
-            zipf = row[1]["Zipf value"]
-            
-            # Don't filter out high frequency words
-            if zipf < 4.5:
-                word_exists = caseless_check(unit, lang=lang)
-                
-                # Remove the word if the spell checker does not recognise it
-                if not word_exists:
-                    freq_lists["word"].drop([row[0]], inplace=True)
-                    return
-        
         # Generate character frequencies
-        if count_character and unit_name == "Word":
+        if count_character:
             char_freqs = count_ngram(unit, n=1, ngram_freq={})
             update_dict("character", char_freqs, unit_freq)
         
         # Generate bigram frequencies
-        if count_bigram and unit_name == "Word":
+        if count_bigram:
             bigram_freqs = count_ngram(unit, n=2, ngram_freq={})
             update_dict("bigram", bigram_freqs, unit_freq)
+
     
+    if ipa_file and unit_name == "Word":
+        print("Adding IPA...")
+        if lang == "de":
+            freq_lists["word"]["IPA"] = freq_df.apply(lambda row: ipa_dict.get(row["Word"], ipa_dict.get(row["Word"].replace("ß", "ss"), None)), axis=1)
+        else:
+            freq_lists["word"]["IPA"] = freq_df.apply(lambda row: ipa_dict.get(row["Word"], None), axis=1)
     
-    # Go into the add info loop if there is info to add
-    if ((spell_check or ipa_file or count_character or count_bigram) 
-        and unit_name == "Word"):
-        freq_df = freq_lists[unit_name.lower()]
+    if spell_check and unit_name == "Word":
         
-        # Add Zipf for spell-checking (not checking anything over 4.5)
-        if spell_check and not freq_df["Frequency per million"].any():
+        if "Frequency per million" not in freq_df.columns:
             freq_df["Frequency per million"] = freq_df["Frequency"].apply(lambda freq: round(10**6 * freq / total_units, 4)) 
             freq_df["Zipf value"] = freq_df["Frequency per million"].apply(lambda freq_mil: round(math.log10(freq_mil)+3, 4))
         
-        print("Adding new information...")
+        print("Spell-checking...")
+        freq_df = freq_lists["word"]
+        
+        if "IPA" in freq_lists["word"].columns:
+            freq_df["Aspell"] = freq_df.apply(lambda row: caseless_check(row["Word"], lang=lang) if row["Zipf value"] < 4.5 and pd.isna(row["IPA"]) else True, axis=1)
+        else:
+            freq_df["Aspell"] = freq_df.apply(lambda row: caseless_check(row["Word"], lang=lang) if row["Zipf value"] < 4.5 else True, axis=1)
+       
+        freq_lists["word"] = freq_df.loc[freq_df["Aspell"] == True]
+        freq_lists["word"] = freq_lists["word"].drop(columns=['Aspell'])
+
+
+    # Go into the add info loop if there is info to add
+    if (count_character or count_bigram) and unit_name == "Word":
+        freq_df = freq_lists[unit_name.lower()]
+        
+        print("Adding n-gram information...")
         if progress_bar:
             with alive_bar(freq_lists[unit_name.lower()].shape[0], theme="scuba") as bar:
                 for row in freq_lists[unit_name.lower()].iterrows():
-                    add_info(row)
+                    add_ngrams(row)
                     bar() # Show progress
         else:
             for row in freq_lists[unit_name.lower()].iterrows():
-                add_info(row)
+                add_ngrams(row)
 
     # (Re-)calculate rank, frequency per million and Zipf value
-    for data_type in freq_lists:
-        if data_type != unit_name.lower():
+    for data_type, freq_list in freq_lists.items():
+        
+        if type(freq_list) != pd.DataFrame:
             freq_lists[data_type] = pd.DataFrame(
-                        {"Rank": None, data_type.capitalize(): freq_lists[data_type].keys(), 
-                         "Frequency": freq_lists[data_type].values(), 
-                         "Frequency per million": None, "Zipf value": None})
-            
-        freq_lists[data_type].sort_values(by=["Frequency", data_type.capitalize()], 
-                                          ascending=[False,True],
-                                          inplace=True)
-        
-        freq_df = freq_lists[data_type]
-        
-        # Don't update values if they already exist and no spell check has been done
-        if not spell_check and freq_df["Zipf value"][0]:
-            continue
-        
-        # Get total units / tokens and types
-        total_units = freq_df["Frequency"].sum()
-        total_types = freq_df.shape[0]
-        
-        print(f"Calculating frequency per million for {data_type}s...")
-        freq_df["Frequency per million"] = freq_df["Frequency"].apply(lambda freq: round(10**6 * freq / total_units, 4))
-        
-        print(f"Calculating Zipf value for {data_type}s...")
-        freq_df["Zipf value"] = freq_df["Frequency per million"].apply(lambda freq_mil: round(math.log10(freq_mil)+3, 4)) 
-        
+                        {data_type.capitalize(): freq_lists[data_type].keys(), 
+                         "Frequency": freq_lists[data_type].values()})
 
-        print(f"Calculating rank for {data_type}s...")
-        freq_df['Rank'] = freq_df["Frequency"].rank(method="dense", ascending=False).astype(int)
-        
         # Calculate word information for statistics
         if stats and data_type ==  "word":
+            
+            # Get total units / tokens and types
+            total_units = freq_df["Frequency"].sum()
+            total_types = freq_df.shape[0]
+            
             # token_len = freq_df["Word"].apply(lambda word: len(word)*word.Frequency).sum()
             token_len = freq_df[["Word", "Frequency"]].apply(lambda row: len(row["Word"])*row["Frequency"], axis=1).sum()
             type_len = freq_df["Word"].apply(lambda word: len(word)).sum()
@@ -229,16 +193,16 @@ def extend_data(freq_df, lang="en", unit_name="Word", spell_check=False,
             print(f"The total number of {unit_name.lower()}s in the {corpus_size} corpus is {total_units}.")
             print(f"The total number of {unit_name.lower()} types in the {corpus_size} corpus is {total_types}.")
             
-            if unit_name == "Word":
+            if data_type == "word":
                 token_len_av = round(token_len/total_units, 2)
                 type_len_av = round(type_len/total_types, 2)
                 print()
                 print(f"The average word length within the {corpus_size} corpus text is {token_len_av}.")
                 print(f"The average unique word length within the {corpus_size} corpus {type_len_av}.")
-
-            if "IPA" in freq_lists[data_type].columns:
-                ipa_count = freq_lists[data_type]['IPA'].count()
-                print(f"The IPA transcription is provided for {ipa_count} {unit_name.lower()}s in the {corpus_size} corpus.")
+    
+                if "IPA" in freq_lists[data_type].columns:
+                    ipa_count = freq_lists[data_type]['IPA'].count()
+                    print(f"The IPA transcription is provided for {ipa_count} {unit_name.lower()}s in the {corpus_size} corpus.")
             print()
 
 

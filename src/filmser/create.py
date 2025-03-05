@@ -9,7 +9,6 @@ import pandas as pd
 from .freq_counters.collect_frequencies import collect_frequencies
 from .data_extenders.extend_data import extend_data
 
-
 from .iso2lang import FULL2ISO
 from .tokenizers.spacy_tokenizer import SIZE2SPACY
 
@@ -90,10 +89,8 @@ def create_new_list(data_path, lang="en", spacy_size="sm", spell_check=False,
         
         unit_name = data_type.split("_")[0].capitalize()
         
-        # Dictionary to DataFrame    
-        data_dict = {"Rank": None, unit_name: [],
-                    "Frequency": freq_list.values(),
-                    "Frequency per million": None, "Zipf value": None}
+        # Dictionary to DataFrame
+        data_dict = {unit_name: [], "Frequency": freq_list.values()}
         
         for unit in freq_list:
             if type(unit) == str:
@@ -118,14 +115,6 @@ def create_new_list(data_path, lang="en", spacy_size="sm", spell_check=False,
                                    stats=stats, progress_bar=progress_bar)
         
         for unit_name, freq_df in extended_dfs.items():
-            # Sort the list
-            freq_df.sort_values(by=["Frequency", unit_name.capitalize()], 
-                                     ascending=[False,True], inplace=True)
-            
-            # Remove empty columns
-            nan_value = float("NaN") 
-            freq_df.replace("", nan_value, inplace=True) 
-            freq_df.dropna(how='all', axis=1, inplace=True)
         
             if unit_name == "word" and data_type == "word_extended":
                 unit_name = "word_extended"

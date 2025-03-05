@@ -65,9 +65,14 @@ def collect_frequencies(data_path, lang="en", spacy_size="sm",
             data_lines = f.readlines()
     
     # Adapt the language name to find the right tokenizer
-    # Use spacy's Chinese tokenizer for Cantonese
-    lang_spacy = "zh" if lang == "yue" else lang
-    lang_spacy = lang_spacy.split("_")[0]  # Only use the main part for checking
+    if lang == "no":
+        # Use Norwegian Bokmal for Norwegian
+        lang_spacy = "nb"
+    elif lang == "yue":
+        # Use spacy's Chinese tokenizer for Cantonese
+        lang_spacy = "zh"
+    else:
+        lang_spacy = lang.split("_")[0]  # Only use the main part for checking
 
     if lang_spacy in LANG2BIGSPACY:
         print("Loading the spacy model...")

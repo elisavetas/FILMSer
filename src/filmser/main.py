@@ -8,18 +8,22 @@ the frequency information from the data.
 import argparse
 import time
 
+# Import as a script
 if __package__ is None:
     from create import create_new_list
     from update import upd_exist_list
     from file_processors.export_data import export_data
+    from data_extenders.add_freq_measures import add_freq_measures
     
     from iso2lang import ISO2FULL, FULL2ISO
     from tokenizers.spacy_tokenizer import SIZE2SPACY
-    
+
+# Import as a package    
 else:
     from .create import create_new_list
     from .update import upd_exist_list
     from .file_processors.export_data import export_data
+    from .data_extenders.add_freq_measures import add_freq_measures
                                                      
     from .iso2lang import ISO2FULL, FULL2ISO
     from .tokenizers.spacy_tokenizer import SIZE2SPACY
@@ -133,10 +137,22 @@ def main(file_path, mode="create", lang="en", spacy_size="sm",
                                     count_character=count_character, 
                                     count_bigram=count_bigram, stats=stats,
                                     progress_bar=progress_bar)
-    
-    # Write data into file(s)
-    for data_type in freq_lists:
-        freq_list_df = freq_lists[data_type]
+
+    for data_type, freq_df in freq_lists.items():
+
+        # Sort the list and add additional frequency information
+        freq_df = add_freq_measures(freq_df, data_type.split("_")[0])
+
+        # Remove empty columns
+        nan_value = float("NaN") 
+        freq_df.replace("", nan_value, inplace=True) 
+        freq_df.dropna(how='all', axis=1, inplace=True)
+
+        # Order the columns correctly
+        cols = ["Rank", data_type.split("_")[0].capitalize(), "Frequency", 
+                "Frequency per million", "Zipf value"]
+        cols += [col for col in freq_df.columns if col not in cols] # For additional info
+        freq_df = freq_df.reindex(columns=cols)
         
         # Add the slash to the output directory if it was not provided
         if output_dir[-1] != "/":
@@ -148,15 +164,15 @@ def main(file_path, mode="create", lang="en", spacy_size="sm",
 
         if mode == "update":
             file_name += "--update"
-        if add_data_file:
-            file_name += "." + ".".join(add_data_file.split("/")[-1].split(".")[:-1])
+            if add_data_file:
+                file_name += "." + ".".join(add_data_file.split("/")[-1].split(".")[:-1])
         if spell_check:
             file_name += ".spell_checked"
         if ipa_file:
             file_name += ".ipa"
-        
+
         # Write the data into file(s)
-        export_data(freq_list_df, file_name, file_types=output_type)
+        export_data(freq_df, file_name, file_types=output_type)
 
 
 

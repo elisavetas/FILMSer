@@ -50,11 +50,11 @@ def export_data(df, file_name, file_types="txt"):
         dir_level -= 1
         directory = "/".join(split_path[:-dir_level])
         os.mkdir(directory)
-    
+        
     # Create the file(s) with the required extension
     for file_type in file_types.split("|"):
         curr_file_name = f"{file_name}.{file_type}"
-        
+                
         if file_type == "txt" or file_type == "tsv":
             df.to_csv(curr_file_name, sep='\t', index=False,
                       encoding="utf-8")
