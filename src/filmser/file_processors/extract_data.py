@@ -1,32 +1,29 @@
 # -*- coding: utf-8 -*-
-# Authors: Elizaveta Sineva, Sara Chilson
-"""
-Extract data from gz.
-"""
+# Authors: Elizaveta Sineva
+"""Extract text lines from a gzipped file."""
 
 import gzip
+from pathlib import Path
+from typing import List, Union
 
 
-def extract_from_gz(gz_file):
+def extract_from_gz(gz_file: Union[str, Path]) -> List[str]:
     """
-    Extract data from a given gz file.
+    Read all lines from a .gz text file using UTF-8 decoding.
 
     Parameters
     ----------
-    gz_file : string
-        The path to the data file of gz type.
+    gz_file : str or Path
+        Path to the gzipped text file.
 
     Returns
     -------
-    lines: list of strings
-        A list of lines from the data.
+    list[str]
+        Lines from the file (newline characters preserved).
     """
-    lines = []
-    
-    with gzip.open(gz_file) as f:
-        for line in f:
-            decoded_line = line.decode()
-            lines.append(decoded_line)
-    
-    return lines
+    gz_path = Path(gz_file)
+    if not gz_path.exists():
+        raise FileNotFoundError(f"File not found: {gz_path}")
 
+    with gzip.open(gz_path, mode="rt", encoding="utf-8", errors="strict") as f:
+        return f.readlines()
