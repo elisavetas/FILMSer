@@ -1,22 +1,23 @@
 # -*- coding: utf-8 -*-
-# Authors: Elizaveta Sineva, Sara Chilson
+# Author: Elizaveta Sineva
 """
 PyICU-based tokenizer.
+PyICU: https://pypi.org/project/PyICU/
 """
 
 import icu
+from typing import Tuple, List, Set
 
 from .clean_noise import clean_noise
-from ..iso2lang import ISO2FULL, FULL2ISO
+
+from ..config import FULL2ISO, ICU_LANG2POSTFIX
 
 
-# from .lang_abbr import ISO2FULL
-NON_WHITESPACE = ["th", "km", "my"]
-NOT_IN_ICU = ['an', 'zh_CN', 'zh_TW']
+# Translation table for replacing punctuation with spaces (faster than multiple replace calls)
+_PUNCT_TO_SPACE = str.maketrans(".,", "  ")
 
 
-
-def icu_tokenizer(text, lang="en", stats=False):
+def icu_tokenizer(text: str, lang: str = "en", stats: bool = False) -> Tuple[List[str], Set[str]]:
     """
     A tokenizer that uses the PyICU module as basis for the tokenization.
     PyICU: https://pypi.org/project/PyICU/
@@ -46,19 +47,23 @@ def icu_tokenizer(text, lang="en", stats=False):
     if lang.lower() in FULL2ISO:
         lang = FULL2ISO[lang.lower()]
     
-    # Check that tokenizer is available
-    assert lang not in NOT_IN_ICU, f"ICU tokenizer for locale '{ISO2FULL[lang]}' does not exist."
-    
-    # Set the locale and iterator
+    if "_" in lang:
+        lang_base, postfix = lang.split("_", 1)
+    else:
+        lang_base, postfix = lang, ""
+
+    if lang_base in ICU_LANG2POSTFIX and postfix.upper() not in ICU_LANG2POSTFIX[lang_base]:
+        lang = lang_base  # Use base language if specific postfix not supported
+
+    # Set up the ICU tokenizer
     locale = icu.Locale(lang)
     break_iterator = icu.BreakIterator.createWordInstance(locale)
     
-    # Replace comma and period with a space to make sure it splits on them
-    for char in ",.":
-        text = text.replace(char, " ")
+    # Replace comma and period with a space
+    text = text.translate(_PUNCT_TO_SPACE)
     
     # Process the given line
-    break_iterator.setText(text)  
+    break_iterator.setText(text)
     
     # Collect words from the output word boundaries
     tokens = []
@@ -75,9 +80,8 @@ def icu_tokenizer(text, lang="en", stats=False):
                 
         # Add non-noisy tokens (noisy: punctuation, random symbols, words with symbols inside)
         if token:
-            tokens.append(token.lower())  
+            tokens.append(token.lower())
             
         start = end  
 
     return tokens, removed
-

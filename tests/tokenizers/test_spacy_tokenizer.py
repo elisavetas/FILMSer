@@ -6,7 +6,7 @@ from src.filmser.tokenizers.spacy_tokenizer import spacy_tokenizer
 
 
 class TestSpacyTokenizer:
-    """Tests for Spacy tokenizer functionality."""
+    """Tests for the Spacy tokenizer functionality."""
 
     def test_spacy_tokenizer_basic(self):
         """Test Spacy tokenizer on basic English text with punctuation."""
