@@ -1,19 +1,24 @@
 # -*- coding: utf-8 -*-
-# Authors: Elizaveta Sineva, Sara Chilson
+# Author: Elizaveta Sineva
 """
 Tokenizer based on regular expressions. 
 """
 
 import re
+from typing import Tuple, List, Set
 
 from .clean_noise import clean_noise
 
 
-SPLIT_CHARS = ' \t?!\"\\\.,:;\\/\\(\\)\\[\\]\\{\\}৷'
+SPLIT_CHARS = " \t?!\"\\.,:;/()[]{}"
+REGEX_SPLIT_CHARS = re.escape(SPLIT_CHARS)
+
+# Compile regex patterns at module level to load them once and reuse for efficiency
+_QUOTE_PATTERN = re.compile(fr"(^|[{REGEX_SPLIT_CHARS}])(?P<quote>'.*?')($|[{REGEX_SPLIT_CHARS}])")
+_SPLIT_PATTERN = re.compile(fr"[{REGEX_SPLIT_CHARS}]+")
 
 
-
-def regex_tokenizer(text, lang="en", stats=False):
+def regex_tokenizer(text: str, lang: str = "en", stats: bool = False) -> Tuple[List[str], Set[str]]:
     """
     A tokenizer that uses regular expressions as basis for the tokenization.
 
@@ -40,23 +45,24 @@ def regex_tokenizer(text, lang="en", stats=False):
     text = text.lower()
     
     # Find apostrophes used as quotation marks
-    quote_pattern = fr"(^|[{SPLIT_CHARS}])(?P<quote>'.*?')($|[{SPLIT_CHARS}])"
-    quote_matches = re.finditer(quote_pattern, text)
+    quote_matches = list(_QUOTE_PATTERN.finditer(text))
     
-    apo_quote_pos = []
-    
-    # Find positions of the apostrophes used as quotation marks
-    for quote_match in quote_matches:
-        start_pos = quote_match.start("quote")   # Position of opening apostrophe
-        end_pos = quote_match.end("quote") - 1   # Position of closing apostrophe
-        apo_quote_pos += [start_pos, end_pos]
-    
-    # Remove apostrophes used as quotation marks
-    for apo_pos in apo_quote_pos[::-1]:
-        text = text[:apo_pos] + text[apo_pos+1:]
+    # Remove apostrophes used as quotation marks (build new string to avoid reverse iteration)
+    if quote_matches:
+        result = []
+        last_end = 0
+        for match in quote_matches:
+            quote_start = match.start("quote")
+            quote_end = match.end("quote")
+            # Add text before quote, then quote content without apostrophes
+            result.append(text[last_end:quote_start])
+            result.append(text[quote_start + 1:quote_end - 1])
+            last_end = quote_end
+        result.append(text[last_end:])
+        text = "".join(result)
     
     # Split tokens
-    split_tokens = re.split(fr"[{SPLIT_CHARS}]+", text)
+    split_tokens = _SPLIT_PATTERN.split(text)
         
     clean_tokens = []
     all_removed = set()
@@ -64,7 +70,8 @@ def regex_tokenizer(text, lang="en", stats=False):
     # Clean the noisy characters from the token
     for token in split_tokens:
         clean_token, removed = clean_noise(token, lang=lang, stats=stats)
-        all_removed.update(removed)
+        if stats:
+            all_removed.update(removed)
         if clean_token:
             clean_tokens.append(clean_token)
     
