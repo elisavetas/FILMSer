@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Authors: Elizaveta Sineva
+# Author: Elizaveta Sineva
 """Extract text lines from a gzipped file."""
 
 import gzip

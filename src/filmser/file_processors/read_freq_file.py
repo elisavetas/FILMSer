@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# Authors: Elizaveta Sineva
-"""Module to read frequency list files."""
+# Author: Elizaveta Sineva
+"""Reads frequency list files produced by FILMSer."""
 
 from typing import Union
 from pathlib import Path
@@ -10,7 +10,8 @@ import pandas as pd
 
 def read_frequency_file(file_path: Union[str, Path]) -> dict:
     """
-    Read frequency list from xlsx or tab-separated file.
+    Read frequency list from xlsx or tab-separated file 
+        produced by FILMSer.
 
     Parameters
     ----------
