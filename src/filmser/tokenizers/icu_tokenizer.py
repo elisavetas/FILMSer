@@ -5,7 +5,6 @@ PyICU-based tokenizer.
 PyICU: https://pypi.org/project/PyICU/
 """
 
-import icu
 from typing import Tuple, List, Set
 
 from .clean_noise import clean_noise
@@ -42,6 +41,7 @@ def icu_tokenizer(text: str, lang: str = "en", stats: bool = False) -> Tuple[Lis
         A set of removed characters.
         
     """
+    import icu  # Importing here to avoid issues if PyICU is not installed
     
     # Get the ISO code for the language if the full name was provided
     if lang.lower() in FULL2ISO:
