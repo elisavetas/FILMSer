@@ -1,52 +1,42 @@
 # -*- coding: utf-8 -*-
-# Authors: Elizaveta Sineva, Sara Chilson
+# Author: Elizaveta Sineva
 """
-Spacy tokenizer.
+Tokenizer that uses spaCy models for tokenization. 
+This module provides functions to load spaCy pipelines and perform tokenization 
+    with optional linguistic information and statistics collection.
 """
 
-import spacy
+import gc
+import os
+
+from typing import Tuple, List, Set, Union
+from functools import lru_cache
 
 from .clean_noise import clean_noise
 
+from ..config import SIZE2SPACY, SPACY_LANG, LANG2SPACYLANG
 
-SIZE2SPACY = {"small": "sm", 
-              "middle": "md", 
-              "large": "lg",
-              "transformer": "trf",
-              "big": "lg",
-              "transformers": "trf"}
+FALLBACK_ORDER = ["trf", "lg", "md", "sm"]
 
-LANG2BIGSPACY = {"ca": "trf",
-                 "da": "trf",
-                 "de": "trf",
-                 "el": "lg",
-                 "en": "trf",
-                 "es": "trf",
-                 "fi": "lg",
-                 "fr": "trf",
-                 "hr": "lg",
-                 "it": "lg",
-                 "ja": "trf",
-                 "ko": "lg",
-                 "lt": "lg",
-                 "mk": "lg",
-                 "nb": "lg",
-                 "nl": "lg",
-                 "pl": "lg",
-                 "pt": "lg",
-                 "ro": "lg",
-                 "ru": "lg",
-                 "sl": "trf",
-                 "sv": "lg",
-                 "uk": "trf",
-                 "zh": "trf"}
+# Cache for loaded pipelines
+_PIPELINE_CACHE = {}
+# Store original CUDA_VISIBLE_DEVICES for restoration
+_ORIGINAL_CUDA_VISIBLE_DEVICES = os.environ.get("CUDA_VISIBLE_DEVICES")
 
 
+@lru_cache(maxsize=8)
+def _get_pipeline_key(lang: str, pipe_size: str, ling_info: bool) -> str:
+    """Generate cache key for pipeline."""
+    return f"{lang}_{pipe_size}_{ling_info}"
 
-def load_pipeline(lang="en", pipe_size="sm"):
+
+def load_pipeline(lang: str = "en", pipe_size: str = "sm", ling_info: bool = False):
     """
-    Loads a spacy pipeline.
-
+    Load a spaCy pipeline for the specified language and model size, with optional linguistic information.
+    
+    This function attempts to load the requested spaCy model, falling back to smaller models if necessary.
+    The loaded pipeline is cached for future use.
+    
     Parameters
     ----------
     lang : str, optional
@@ -55,57 +45,95 @@ def load_pipeline(lang="en", pipe_size="sm"):
         The size of the necessary spacy model. 
         Options: sm (small), md (middle), lg (large), trf (transformer)
         The default is "sm" (small).
-        
+    ling_info : bool, optional
+        Whether to include linguistic information (i.e. lemma, POS tags, morphological information) in the pipeline.
+        The default is False.
+
     Returns
     -------
     spacy_pipe : spacy pipeline
         A loaded spacy pipeline for the provided / default model.
-
     """
+    # Lazy import spaCy to avoid triggering torch/CUDA initialization unnecessarily
+    from spacy import load as load_pipe
+    from spacy.cli import download as download_pipe
+    from spacy.util import is_package, compile_infix_regex
+    
     # Convert to the correct size name if necessary
-    if len(pipe_size) > 3 or pipe_size == "big":
-        pipe_size = SIZE2SPACY[pipe_size]
+    pipe_size = SIZE2SPACY.get(pipe_size, pipe_size)
+    lang = LANG2SPACYLANG.get(lang, lang).split("_")[0]  # Use only the first part of the language code
+
+    if lang not in SPACY_LANG:
+        # Use multilingual model for 'xx' language code
+        lang = "xx"
+        pipe_size = "sm"
+
+    # Build the fallback chain starting from requested size
+    sizes = FALLBACK_ORDER[FALLBACK_ORDER.index(pipe_size):] if pipe_size in FALLBACK_ORDER else [pipe_size]
     
-    # For spacy transformer models
-    if pipe_size == "trf":
-        # Get the largest spacy model in case trf isn't available for the language
-        pipe_size = LANG2BIGSPACY[pipe_size]
+    pipe_genre = "web" if lang in ["en", "zh"] else "news"  # According to spaCy's model naming conventions
+    
+    # Disable all components except tokenizer if linguistic info not needed
+    if ling_info:
+        disable_pipes = ["ner", "parser", "textcat", "senter"]
+    else:
+        disable_pipes = ["tagger", "parser", "ner", "lemmatizer", "textcat", "morphologizer", "attribute_ruler", "senter"]
+
+    for size in sizes:
+        # Get the cached pipeline if it exists
+        cache_key = _get_pipeline_key(lang, size, ling_info)
+        if cache_key in _PIPELINE_CACHE:
+            return _PIPELINE_CACHE[cache_key]
+
+        pipe_name = f"{lang}_core_{pipe_genre}_{size}" if lang != "xx" else f"xx_ent_wiki_sm"
+
+        # Download if published and not present
+        if not is_package(pipe_name):
+            try:
+                download_pipe(pipe_name)
+            except SystemExit:
+                # Download failed (model doesn't exist), try next size
+                continue
+
+        spacy_pipe = load_pipe(pipe_name, disable=disable_pipes)
         
+        if size != pipe_size:
+            print(f"Warning: Requested spaCy model size '{pipe_size}' not found for language '{lang}'. "
+                  f"Using '{size}' model instead.")
 
-    pipe_genre = "web" if lang in ["en", "zh"] else "news"
-    pipe_name = f"{lang}_core_{pipe_genre}_{pipe_size}"
-    
-    disable_pipes=["ner", "parser", "textcat"]
-    
-    # Install necessary model if it's not been installed
-    try:
-        spacy_pipe = spacy.load(pipe_name, disable=disable_pipes)
-    except OSError:
-        print(f"{pipe_name} not found. Downloading now...")
-        spacy.cli.download(pipe_name)
-        spacy_pipe = spacy.load(pipe_name, disable=disable_pipes)
-    
-    # Handle hyphenated words
-    # Get existing infix patterns
-    infix_patterns = list(spacy_pipe.Defaults.infixes) 
-    
-    # Remove the rule that splits on hyphens
-    infix_patterns = [p for p in infix_patterns if "-|" not in p]
-    
-    # Compile the modified patterns
-    infix_re = spacy.util.compile_infix_regex(infix_patterns)
-    
-    # Update the infix rules within the tokenizer
-    spacy_pipe.tokenizer.infix_finditer = infix_re.finditer
-        
-    return spacy_pipe
+        # Handle hyphenated words - no splitting on hyphens
+        infix_patterns = list(spacy_pipe.Defaults.infixes)
+        infix_patterns = [p for p in infix_patterns if "-|" not in p]
+        infix_re = compile_infix_regex(infix_patterns)
+        spacy_pipe.tokenizer.infix_finditer = infix_re.finditer
+
+        spacy_pipe._filmser_cache_key = cache_key
+        spacy_pipe._filmser_package_name = pipe_name
+
+        _PIPELINE_CACHE[cache_key] = spacy_pipe
+        return spacy_pipe
+
+    raise OSError(f"No spaCy model published for {lang} in sizes {sizes}")
 
 
+def unload_pipeline(pipeline=None):
+    """Remove a loaded pipeline from the cache and release its memory."""
+    if pipeline is None:
+        return
 
-def spacy_tokenizer(text, lang="en", pipe_size="sm", pipeline=None,
-                    ling_info=True, stats=False):
+    cache_key = getattr(pipeline, "_filmser_cache_key", None)
+    if cache_key is not None:
+        _PIPELINE_CACHE.pop(cache_key, None)
+
+    del pipeline
+    gc.collect() # Release memory
+
+
+def spacy_tokenizer(text: str, lang: str = "en", pipe_size: str = "sm", 
+                    pipeline = None, ling_info: bool = False, 
+                    stats: bool = False) -> Tuple[List[Union[str, Tuple]], Set[str]]:
     """
-    A tokenizer that uses teh spacy model as basis for the tokenization.
+    A tokenizer that uses a spaCy model as basis for the tokenization.
 
     Parameters
     ----------
@@ -123,49 +151,51 @@ def spacy_tokenizer(text, lang="en", pipe_size="sm", pipeline=None,
     ling_info : bool, optional
         Set to True if the linguistic information is to be added.
         Spacy page: https://spacy.io/usage/spacy-101#annotations
-        The default is True.
+        The default is False.
         The information will include (if applicable to the language):
             - Lemma
-            - Part of speeach tags (simple and detailed) 
+            - Part of speech tags (UPOS and language-specific) 
             - Morphological information
             - If the given token is a stop word
     stats : bool, optional
-        Set to True to have some statistical information about the corpus 
+        Set to True to have some statistical information about the data 
             be collected. The default is False.
 
     Returns
     -------
     tokens : list of strings
-        A list of cleaned-up tokens from the line.
+        A list of cleaned-up tokens from the text.
     removed : set
         A set of removed characters.
 
     """
     # Load the necessary pipeline if one wasn't provided    
     if not pipeline:
-        pipeline = load_pipeline(lang=lang, pipe_size=pipe_size)
-    
+        pipeline = load_pipeline(lang=lang, pipe_size=pipe_size, ling_info=ling_info)
+
     processed = pipeline(text)
     tokens = []
     
     # Keep track of deleted characters
     removed = set()
-    
+
     for token in processed:
         token_text = token.text.lower()
         
-        # Clean noisy chracters from the token if possible
-        if (not token_text.isalpha()):
-            token_text, removed = clean_noise(token_text, lang=lang, stats=stats)
+        # Clean noisy characters from the token if possible
+        if not token_text.isalpha():
+            token_text, removed_chars = clean_noise(token_text, lang=lang, stats=stats)
+            if stats:
+                removed.update(removed_chars)
             if not token_text:
                 continue
         
         if ling_info:
-            final_tok = (token_text, token.lemma_.lower(), token.pos_, token.tag_, str(token.morph), token.is_stop)
+            final_tok = (token_text, token.lemma_.lower(), token.pos_, 
+                        token.tag_, str(token.morph), token.is_stop)
         else:
             final_tok = token_text
         
         tokens.append(final_tok)
         
     return tokens, removed
-
