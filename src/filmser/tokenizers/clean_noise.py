@@ -1,26 +1,27 @@
 # -*- coding: utf-8 -*-
-# Authors: Elizaveta Sineva, Sara Chilson
+# Author: Elizaveta Sineva
 """
 Removes unnecessary characters from tokens
 """
 
 import unicodedata
+from functools import lru_cache
 
 
-SPLIT_CHARS = '\t[]()?!"/\\.,:;৷'
+@lru_cache(maxsize=512)
+def _unicode_category(char: str) -> str:
+    """Cache unicode category lookups for performance."""
+    return unicodedata.category(char)
 
 
-
-def is_allowed_on_border(char):
+def _is_allowed_on_border(char: str) -> bool:
     """
     Check if a character is not part of the noisy characters
     and should be kept (is allowed) at the border of the token.
     Allowed characters:
         - alphabetic
-        - space
         - apostrophe
-        - some combining non-alpahbetic characters
-        - some formatting characters
+        - some combining non-alphabetic characters
 
     Parameters
     ----------
@@ -35,30 +36,25 @@ def is_allowed_on_border(char):
 
     """
     # Apostrophes are allowed
-    if char.isalpha() or char in "' ":
+    if char.isalpha() or char == "'":
         return True
-    else:
-        # Check for combining non-alphabetic characters
-        uni_cat = unicodedata.category(char)
-        uni_hex = hex(ord(char))
-                
-        # Remove if the character isn't combining  or formatting
-        if uni_cat != "Mn" and uni_cat != "Mc" and uni_cat != "Cf":
-            return False
-        
-        # Remove if the combining character is...
-        elif (uni_hex.startswith("0x1d1") or  # musical
-              uni_hex.startswith("0x1d2") or  # Greek musical
-              uni_hex.startswith("0x1da")     # sign writing
-              ):
-                return False
+    
+    # Remove if the character isn't combining
+    uni_cat = _unicode_category(char)
+    if uni_cat not in {"Mn", "Mc"}:
+        return False
+    
+    # Remove if the combining character is...
+    uni_hex = hex(ord(char))
+    if (uni_hex.startswith("0x1d1") or  # musical
+        uni_hex.startswith("0x1d2") or  # Greek musical
+        uni_hex.startswith("0x1da")):   # sign writing
+        return False
 
     return True
 
 
-
-
-def is_allowed_inside(char):
+def _is_allowed_inside(char):
     """
     Check if a character is not part of the noisy characters
     and should be kept (is allowed) within the token.
@@ -67,8 +63,8 @@ def is_allowed_inside(char):
         - space
         - apostrophe
         - hyphen ! - not allowed at the border, but allowed inside
-        - some combining non-alpahbetic characters
-        - some formatting characters
+        - some combining non-alphabetic characters
+        - some formatting characters ! - not allowed at the border, but allowed inside
 
     Parameters
     ----------
@@ -82,14 +78,49 @@ def is_allowed_inside(char):
             False if not.
 
     """
-    # Characters allowed at the birder of the word are allowed inside the word
-    if is_allowed_on_border(char):
+    # Characters allowed at the border of the word + hyphen and space are allowed inside the word
+    if _is_allowed_on_border(char) or char in "- ":
         return True
-    # Hyphens is also allowed
-    elif char == "-":
-        return True
-    return False
+    
+    # Characters that are formatting are allowed inside the word (Characters of Category “Format”)
+    uni_cat = _unicode_category(char)
+    return uni_cat == "Cf"
 
+
+def _strip_borders(token: str, stats: bool = False, removed: set = None) -> str:
+    """
+    Strip non-allowed characters from both ends of the token.
+
+    Parameters
+    ----------
+    token : str
+        The token to strip.
+    stats : bool, optional
+        Whether to collect removed characters for statistics. The default is False.
+    removed : set, optional
+        A set to store removed characters (if stats is enabled). If None, a new set is created.
+
+    Returns
+    -------
+    str
+        The token with non-allowed border characters removed.
+    """
+    if removed is None:
+        removed = set()
+        
+    # Strip from beginning
+    while token and not _is_allowed_on_border(token[0]):
+        if stats and token[0] != " ":
+            removed.add(token[0])
+        token = token[1:]
+    
+    # Strip from end
+    while token and not _is_allowed_on_border(token[-1]):
+        if stats and token[-1] != " ":
+            removed.add(token[-1])
+        token = token[:-1]
+    
+    return token
 
 
 def clean_noise(token, lang="en", stats=False):
@@ -100,8 +131,8 @@ def clean_noise(token, lang="en", stats=False):
         - space
         - apostrophe
         - hyphen ! - not allowed at the border, but allowed inside
-        - some combining non-alpahbetic characters
-        - some formatting characters
+        - some combining non-alphabetic characters
+        - some formatting characters ! - not allowed at the border, but allowed inside
 
     Parameters
     ----------
@@ -117,82 +148,46 @@ def clean_noise(token, lang="en", stats=False):
 
     Returns
     -------
-    clean_token.strip(), str
+    clean_token, str
         The cleaned version of the token stripped of leading / trailing spaces.
+        Returns an empty string if the token is to be removed as noise.
     removed : set
         A set of removed characters.
 
     """
-    
     clean_token = token
-    
-    # Replace the splitting chars with a space to keep a token that way
-    for char in SPLIT_CHARS:
-        clean_token.replace(char, " ")
     
     removed = set()
     
     # If there are non-alphabetic parts in the token, check if it's only ' and -
-    # Keep the ' and -
     if not token.isalpha():
         
         # If the token is one character, remove
         if len(token) <= 1:
-            if stats and token:
+            if stats and token and token != " ":
                 removed.add(token)
             return "", removed
         
-        # Check if the only non-alphy characters are apostrophes (then keep)
+        # Check if the only non-alpha characters are apostrophes (then keep)
         stripped_token = token.replace("'", "")
         
         # If there are additional non-alpha characters
         if not stripped_token.isalpha():
             
-            # Remove non-alphabetic characters from the beginning excluiding apostrophe
-            begginning_char = clean_token[0]
-            while clean_token and not is_allowed_on_border(begginning_char):
-                if stats:    
-                    removed.add(clean_token[0])
-                clean_token = clean_token[1:]
-                # If there are no more characters left, return
-                if not clean_token:
-                    return "", removed
-                begginning_char = clean_token[0]
-                    
-            # Remove non-alphabetic characters from the end excluiding apostrophe
-            end_char = clean_token[-1]
-            while clean_token and not is_allowed_on_border(end_char):
-                if stats:
-                    removed.add(clean_token[-1])
-                clean_token = clean_token[:-1]
-                # If there are no more characters left, return
-                if not clean_token:
-                    return "", removed
-                end_char = clean_token[-1]
+            # Remove non-alphabetic characters from borders
+            clean_token = _strip_borders(clean_token, stats, removed)
+            if not clean_token:
+                return "", removed
             
-            # Check if the characters left in the middle are only apostrophes and hyphens
-            stripped_token = clean_token.replace("'", "").replace("-", "")
-            
-            # If there are non-alpha characters in the middle of the word
-            if not stripped_token.isalpha():
-                remove_word = False
-                # Check if they are noise or not
-                for char in stripped_token:
-                    # If one of the character inside of the word is noisy,
-                    # remove the whole word
-                    if not char.isalpha() and not is_allowed_inside(char):
-                        if stats:
-                            remove_word = True
-                            removed.add(char)
-                        else:
-                            return "", removed
-                
-                if remove_word:
+            # Check if remaining middle characters are valid
+            for char in clean_token:
+                if not char.isalpha() and not _is_allowed_inside(char):
+                    if stats:
+                        removed.add(clean_token)
                     return "", removed
-        
+    
     if lang == "en":
         # Replace double apostrophes with a single one for English
         clean_token = clean_token.replace("''", "'")
     
-    return clean_token.strip(), removed
-
+    return clean_token, removed
