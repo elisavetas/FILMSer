@@ -2,7 +2,7 @@
 # Author: Elizaveta Sineva
 """Tests for loading Spacy pipelines."""
 
-from src.filmser.tokenizers.spacy_tokenizer import _get_pipeline_key, load_pipeline
+from src.filmser.tokenizers.spacy_tokenizer import _get_pipeline_key, load_pipeline, unload_pipeline
 
 
 class TestSpacyPipelineLoading:
@@ -71,3 +71,26 @@ class TestSpacyPipelineLoading:
         assert nlp is not None, "Unknown language xx pipeline failed to load"
         assert nlp.lang == "xx", f"Expected language 'xx', got '{nlp.lang}'"
         assert nlp.meta["name"] == "ent_wiki_sm", f"Expected pipeline name 'ent_wiki_sm', got '{nlp.meta['name']}'"
+
+    def test_unload_pipeline(self):
+        """Test unloading a Spacy pipeline."""
+        # Load a pipeline first
+        nlp = load_pipeline("en", "sm", ling_info=False)
+        assert nlp is not None, "Pipeline failed to load"
+        
+        cache_key = _get_pipeline_key("en", "sm", False)
+        
+        # Import the cache to verify state
+        from src.filmser.tokenizers.spacy_tokenizer import _PIPELINE_CACHE
+        assert cache_key in _PIPELINE_CACHE, f"Pipeline should be in cache after loading"
+        
+        # Unload the pipeline
+        unload_pipeline(nlp)
+        
+        # Verify it's removed from cache
+        assert cache_key not in _PIPELINE_CACHE, f"Pipeline should be removed from cache after unloading"
+
+    def test_unload_pipeline_none(self):
+        """Test unloading with None pipeline (should handle gracefully)."""
+        # Should not raise any exception
+        unload_pipeline(None)
