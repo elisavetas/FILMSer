@@ -2,7 +2,6 @@
 # Author: Elizaveta Sineva
 """Tests for export_data function with large datasets."""
 
-import pytest
 import pandas as pd
 from pathlib import Path
 from src.filmser.file_processors.export_data import export_data

@@ -2,8 +2,6 @@
 # Author: Elizaveta Sineva
 """Tests for tokenizer selection and token cleaning."""
 
-import pytest
-
 from src.filmser.tokenizers.pick_tokenizer import pick_tokenizer
 from src.filmser.tokenizers.clean_noise import _unicode_category, _is_allowed_on_border, _is_allowed_inside, _strip_borders, clean_noise
 

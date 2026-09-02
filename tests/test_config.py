@@ -2,7 +2,6 @@
 # Author: Elizaveta Sineva
 """Tests for the config module."""
 
-import pytest
 import re
 
 from src.filmser.config import (

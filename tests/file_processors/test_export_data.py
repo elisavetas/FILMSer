@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Author: Elizaveta Sineva
-"""Tests for file processing utilities."""
+"""Tests for file export functionality."""
 
 import pytest
 import pandas as pd
